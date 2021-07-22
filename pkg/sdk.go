@@ -36,6 +36,7 @@ type sdk struct {
 
 /* Adding a useless commit to test GPG signature */
 /* Another useless commit for demonstrating squash */
+/* Whut? */
 func NewSdk(annotators []interfaces.Annotator, cfg config.SdkInfo, logger logInterface.Logger) interfaces.Sdk {
 	instance := sdk{
 		annotators: annotators,
