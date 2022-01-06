@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/config"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/contracts"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/interfaces"
-	"os"
 )
 
 type TlsAnnotator struct {
@@ -38,7 +39,9 @@ func (a *TlsAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotatio
 	// available off the incoming request whereas pub/sub connection providers may only expose the tls.Config (see
 	// https://pkg.go.dev/crypto/tls#Config) requiring a function implementation for
 	// VerifyConnection func(ConnectionState) error
+
 	val := ctx.Value(contracts.AnnotationTLS)
+
 	if val != nil {
 		tls, ok := val.(*tls.ConnectionState)
 		if !ok {
