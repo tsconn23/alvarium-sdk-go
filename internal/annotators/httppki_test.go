@@ -29,6 +29,12 @@ func TestHttpPkiAnnotator_Do(t *testing.T) {
 
 	req.Header.Set("Host", "example.org")
 	req.Header.Set("Date", time.Now().String())
+	req.Header.Set("X-Example", "Example header with some whitespace.")
+	req.Header.Set("X-Empty-Header", "")
+	req.Header.Set("Cache-Control", "max-age=60")
+	req.Header.Add("Cache-Control", "must-revalidate")
+	req.Header.Set("Signature-Input", "sig1=(\"@method\" \"@path\" \"@authority\" \"cache-control\" \"x-empty-header\" \"x-example\");created=1618884475 ;keyid=\"test-key-rsa-pss\"")
+	req.Header.Set("Signature", "sig1=:P0wLUszWQjoi54udOtydf9IWTfNhy+r53jGFj9XZuP4uKwxyJo1RSHi+oEF1FuX6O29d+lbxwwBao1BAgadijW+7O/PyezlTnqAOVPWx9GlyntiCiHzC87qmSQjvu1CFyFuWSjdGa3qLYYlNm7pVaJFalQiKWnUaqfT4LyttaXyoyZW84jS8gyarxAiWI97mPXU+OVM64+HVBHmnEsS+lTeIsEQo36T3NFf2CujWARPQg53r58RmpZ+J9eKR2CD6IJQvacn5A4Ix5BUAVGqlyp8JYm+S/CWJi31PNUjRRCusCVRj05NrxABNFv3r5S9IXf2fYJK+eyW4AiGVMvMcOg==:")
 
 	ctx := context.WithValue(req.Context(), "Request", req)
 	anno, _ := httppki.Do(ctx, nil)

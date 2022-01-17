@@ -15,6 +15,7 @@ package annotators
 
 import (
 	"context"
+	"net/http"
 	"os"
 
 	"github.com/project-alvarium/alvarium-sdk-go/internal/utils"
@@ -51,7 +52,7 @@ func (a *HTTPPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annot
 
 	//Call parser on request
 	req := ctx.Value("Request")
-	utils.HTTPParser(req)
+	utils.HTTPParser(req.(*http.Request))
 	annotation := contracts.NewAnnotation(string(key), a.hash, hostname, a.kind, true)
 	signed, err := signAnnotation(a.sign.PrivateKey, annotation)
 	if err != nil {
