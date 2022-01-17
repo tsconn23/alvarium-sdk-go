@@ -25,7 +25,7 @@ func TestHttpPkiAnnotator_Do(t *testing.T) {
 	}
 	httppki := NewHttpPkiAnnotator(cfg)
 
-	req := httptest.NewRequest("GET", "/foo", nil)
+	req := httptest.NewRequest("GET", "/path?param=value&foo=bar&baz=batman", nil)
 
 	req.Header.Set("Host", "example.org")
 	req.Header.Set("Date", time.Now().String())
