@@ -1,4 +1,4 @@
-package annotators
+package http
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package utils
+package http
 
 import (
 	"bytes"
@@ -17,6 +17,8 @@ func HTTPParser(r *http.Request) bool {
 	rs := rgx.FindStringSubmatch(signature_input)
 	signature_input_list := strings.Split(rs[1], " ")
 	fmt.Printf("Signature-Input list: %v\n", signature_input_list)
+
+	//Speciality components extraction
 	speciality_components := make(map[string][]string)
 
 	//@method:

@@ -17,13 +17,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/project-alvarium/alvarium-sdk-go/internal/signprovider"
 	"github.com/project-alvarium/alvarium-sdk-go/internal/signprovider/ed25519"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/config"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/contracts"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/interfaces"
-	"io/ioutil"
-	"os"
 )
 
 // PkiAnnotator is used to validate whether the signature on a given piece of data is valid
@@ -42,7 +43,7 @@ func NewPkiAnnotator(cfg config.SdkInfo) interfaces.Annotator {
 }
 
 func (a *PkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotation, error) {
-	key := deriveHash(a.hash, data)
+	key := DeriveHash(a.hash, data)
 	hostname, _ := os.Hostname()
 
 	var sig signable
@@ -56,7 +57,7 @@ func (a *PkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotatio
 		return contracts.Annotation{}, err
 	}
 	annotation := contracts.NewAnnotation(string(key), a.hash, hostname, a.kind, ok)
-	signed, err := signAnnotation(a.sign.PrivateKey, annotation)
+	signed, err := SignAnnotation(a.sign.PrivateKey, annotation)
 	if err != nil {
 		return contracts.Annotation{}, err
 	}

@@ -52,7 +52,7 @@ func (a *TlsAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotatio
 		}
 	}
 	annotation := contracts.NewAnnotation(key, a.hash, hostname, a.kind, isSatisfied)
-	sig, err := signAnnotation(a.sign.PrivateKey, annotation)
+	sig, err := SignAnnotation(a.sign.PrivateKey, annotation)
 	if err != nil {
 		return contracts.Annotation{}, err
 	}

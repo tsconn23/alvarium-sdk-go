@@ -11,14 +11,14 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  *******************************************************************************/
-package annotators
+package http
 
 import (
 	"context"
 	"net/http"
 	"os"
 
-	"github.com/project-alvarium/alvarium-sdk-go/internal/utils"
+	"github.com/project-alvarium/alvarium-sdk-go/internal/annotators"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/config"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/contracts"
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/interfaces"
@@ -41,7 +41,7 @@ func NewHttpPkiAnnotator(cfg config.SdkInfo) interfaces.Annotator {
 
 func (a *HTTPPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotation, error) {
 
-	key := deriveHash(a.hash, data)
+	key := annotators.DeriveHash(a.hash, data)
 	hostname, _ := os.Hostname()
 
 	// var sig signable
@@ -52,9 +52,9 @@ func (a *HTTPPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annot
 
 	//Call parser on request
 	req := ctx.Value("Request")
-	utils.HTTPParser(req.(*http.Request))
+	HTTPParser(req.(*http.Request))
 	annotation := contracts.NewAnnotation(string(key), a.hash, hostname, a.kind, true)
-	signed, err := signAnnotation(a.sign.PrivateKey, annotation)
+	signed, err := annotators.SignAnnotation(a.sign.PrivateKey, annotation)
 	if err != nil {
 		return contracts.Annotation{}, err
 	}
