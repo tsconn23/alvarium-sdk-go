@@ -16,11 +16,21 @@ func HTTPParser(r *http.Request) bool {
 	fmt.Printf("r: %v\n", r)
 	signature_input := r.Header.Get("Signature-Input")
 	//strings.Split(signature_input,)
+	fmt.Printf("signature_input: %v\n", signature_input)
 	rs := rgx.FindStringSubmatch(signature_input)
 	signature_input_list := strings.Split(rs[1], " ")
 	fmt.Printf("Signature-Input list: %v\n", signature_input_list)
 
+	//Result dictionnary
+	result := make(map[string][]string)
+	for i := 0; i < len(signature_input_list); i += 1 {
+		result[signature_input_list[i]] = []string{}
+	}
+
+	fmt.Printf("result: %v\n", result)
+
 	//Speciality components extraction
+
 	speciality_components := make(map[string][]string)
 
 	//@method:
