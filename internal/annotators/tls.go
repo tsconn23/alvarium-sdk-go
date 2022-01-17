@@ -27,7 +27,7 @@ func NewTlsAnnotator(cfg config.SdkInfo) interfaces.Annotator {
 }
 
 func (a *TlsAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotation, error) {
-	key := deriveHash(a.hash, data)
+	key := DeriveHash(a.hash, data)
 	hostname, _ := os.Hostname()
 	isSatisfied := false
 
