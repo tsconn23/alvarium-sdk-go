@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2021 Dell Inc.
+ * Copyright 2022 Dell Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -24,35 +24,29 @@ import (
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/interfaces"
 )
 
-// PkiAnnotator is used to validate whether the signature on a given piece of data is valid
-type HTTPPkiAnnotator struct {
+// HttpPkiAnnotator is used to validate whether the signature on a given piece of data is valid
+type HttpPkiAnnotator struct {
 	hash contracts.HashType
 	kind contracts.AnnotationType
 	sign config.SignatureInfo
 }
 
 func NewHttpPkiAnnotator(cfg config.SdkInfo) interfaces.Annotator {
-	a := HTTPPkiAnnotator{}
+	a := HttpPkiAnnotator{}
 	a.hash = cfg.Hash.Type
 	a.kind = contracts.AnnotationPKI
 	a.sign = cfg.Signature
 	return &a
 }
 
-func (a *HTTPPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotation, error) {
+func (a *HttpPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annotation, error) {
 
 	key := annotators.DeriveHash(a.hash, data)
 	hostname, _ := os.Hostname()
 
-	// var sig signable
-	// err := json.Unmarshal(data, &sig)
-	// if err != nil {
-	// 	return contracts.Annotation{}, err
-	// }
-
 	//Call parser on request
 	req := ctx.Value("Request")
-	HTTPParser(req.(*http.Request))
+	requestParser(req.(*http.Request))
 	annotation := contracts.NewAnnotation(string(key), a.hash, hostname, a.kind, true)
 	signed, err := annotators.SignAnnotation(a.sign.PrivateKey, annotation)
 	if err != nil {

@@ -61,7 +61,7 @@ type AnnotationType string
 
 const (
 	AnnotationPKI     AnnotationType = "pki"
-	AnnotationHTTPPKI AnnotationType = "httppki"
+	AnnotationPKIHttp AnnotationType = "pki-http"
 	AnnotationSource  AnnotationType = "src"
 	AnnotationTLS     AnnotationType = "tls"
 	AnnotationTPM     AnnotationType = "tpm"

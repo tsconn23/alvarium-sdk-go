@@ -3,12 +3,10 @@ package annotators
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
 	"testing"
 
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/config"
@@ -80,18 +78,11 @@ func TestTlsAnnotator_ServeTLS(t *testing.T) {
 	tls := NewTlsAnnotator(cfg)
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//t.Log(r)
-		ctx := context.WithValue(r.Context(), contracts.AnnotationTLS, r)
+		ctx := context.WithValue(r.Context(), contracts.AnnotationTLS, r.TLS)
 		anno, err := tls.Do(ctx, []byte(test.FactoryRandomFixedLengthString(1024, test.AlphanumericCharset)))
 		if err != nil {
 			t.Error(err)
 		}
-		dump, err := httputil.DumpRequest(r, true)
-		if err != nil {
-			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
-			return
-		}
-		fmt.Printf("%q", dump)
 		b, _ := json.Marshal(anno)
 		w.Write(b)
 	}))
@@ -126,7 +117,6 @@ func TestTlsAnnotator_Serve(t *testing.T) {
 	tls := NewTlsAnnotator(cfg)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Log("Request: ", r.Host)
 		ctx := context.WithValue(r.Context(), contracts.AnnotationTLS, r.TLS)
 		anno, err := tls.Do(ctx, []byte(test.FactoryRandomFixedLengthString(1024, test.AlphanumericCharset)))
 		if err != nil {
