@@ -33,12 +33,37 @@ func requestParser(r *http.Request) string {
 	fmt.Printf("r: %v\n", r)
 	signatureInput := r.Header.Get("Signature-Input")
 	fmt.Printf("signatureInput: %v\n", signatureInput)
+
 	rs := rgx.FindStringSubmatch(signatureInput)
 	signatureInputList := strings.Split(rs[1], " ")
 	fmt.Printf("Signature-Input list: %v\n", signatureInputList)
 
 	signatureInputFields := make(map[string][]string)
 	parsedSignatureInput := ""
+
+	signatureInputParsedSection := strings.Split(signatureInput, ";")
+
+	fmt.Printf("---> signatureInputSections: %v\n", signatureInputParsedSection)
+
+	for _, s := range signatureInputParsedSection {
+
+		if strings.Contains(s, "alg") {
+			algorthim_raw := strings.Split(s, "=")[1]
+			algorthim := strings.Trim(algorthim_raw, "\"")
+			signatureInputFields["alg"] = []string{algorthim}
+		}
+
+		if strings.Contains(s, "key") {
+			keyid_raw := strings.Split(s, "=")[1]
+			keyid := strings.Trim(keyid_raw, "\"")
+			signatureInputFields["keyid"] = []string{keyid}
+		}
+
+	}
+
+	// Now we have the value of the keyid and algorithm in the signatureInputFields
+	// the next line is for logging
+	fmt.Printf("=============>> sig input ---------%v\n", signatureInputFields)
 
 	for _, field := range signatureInputList {
 		//remove double quotes from the field to access it directly in the header map
