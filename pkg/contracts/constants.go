@@ -31,7 +31,8 @@ func (t HashType) Validate() bool {
 type KeyAlgorithm string
 
 const (
-	KeyEd25519 KeyAlgorithm = "ed25519"
+	KeyEd25519   KeyAlgorithm = "ed25519"
+	KeyECDsaP256 KeyAlgorithm = "ecdsa-p256-sha256"
 )
 
 func (k KeyAlgorithm) Validate() bool {

@@ -22,48 +22,46 @@ import (
 	"strings"
 )
 
+type signatureInfo struct {
+	seed      string
+	signature string 
+	keyid     string
+	algorithm string
+}
+
 func RemoveExtraSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func requestParser(r *http.Request) string {
+func requestParser(r *http.Request) signatureInfo {
 
 	//Signature Inputs extraction
 	var rgx = regexp.MustCompile(`\((.*?)\)`)
-	fmt.Printf("r: %v\n", r)
 	signatureInput := r.Header.Get("Signature-Input")
-	fmt.Printf("signatureInput: %v\n", signatureInput)
+	signature := r.Header.Get("Signature")
 
 	rs := rgx.FindStringSubmatch(signatureInput)
 	signatureInputList := strings.Split(rs[1], " ")
-	fmt.Printf("Signature-Input list: %v\n", signatureInputList)
 
 	signatureInputFields := make(map[string][]string)
-	parsedSignatureInput := ""
+	var keyid, algorithm string
 
 	signatureInputParsedSection := strings.Split(signatureInput, ";")
-
-	fmt.Printf("---> signatureInputSections: %v\n", signatureInputParsedSection)
-
 	for _, s := range signatureInputParsedSection {
 
 		if strings.Contains(s, "alg") {
-			algorthim_raw := strings.Split(s, "=")[1]
-			algorthim := strings.Trim(algorthim_raw, "\"")
-			signatureInputFields["alg"] = []string{algorthim}
+			algorithm_raw := strings.Split(s, "=")[1]
+			algorithm = strings.Trim(algorithm_raw, "\"")
 		}
 
 		if strings.Contains(s, "key") {
 			keyid_raw := strings.Split(s, "=")[1]
-			keyid := strings.Trim(keyid_raw, "\"")
-			signatureInputFields["keyid"] = []string{keyid}
+			keyid = strings.Trim(keyid_raw, "\"")
 		}
 
 	}
 
-	// Now we have the value of the keyid and algorithm in the signatureInputFields
-	// the next line is for logging
-	fmt.Printf("=============>> sig input ---------%v\n", signatureInputFields)
+	parsedSignatureInput := ""
 
 	for _, field := range signatureInputList {
 		//remove double quotes from the field to access it directly in the header map
@@ -97,7 +95,7 @@ func requestParser(r *http.Request) string {
 
 				signatureInputFields[key] = queryParams
 			default:
-				fmt.Println("Unhandled Specialty Component")
+				fmt.Errorf("Unhandled Specialty Component %s", key)
 			}
 		} else {
 			fieldValues := r.Header.Values(key)
@@ -133,10 +131,12 @@ func requestParser(r *http.Request) string {
 	//remove signature name
 	index := strings.Index(signatureInput, "=")
 	signatureInput = signatureInput[index+1:]
+	index = strings.Index(signature, ":")
+	signature = signature[index+1:]
+	signature = signature[:len(signature) - 1]
 
-	// check if new line needs to be added at the end
+	// check if the new line needs to be removed from the end
 	parsedSignatureInput += ("\"@signature-params\": " + signatureInput + "\n")
-	fmt.Printf("FINAL OUTPUT %v\n", parsedSignatureInput)
-
-	return parsedSignatureInput
+	s := signatureInfo {seed: parsedSignatureInput, signature: signature, keyid: keyid, algorithm: algorithm}
+	return s
 }
