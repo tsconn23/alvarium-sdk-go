@@ -48,13 +48,14 @@ func (a *HttpPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annot
 	hostname, _ := os.Hostname()
 
 	//Call parser on request
-	req := ctx.Value("Request")
+	req := ctx.Value("testData")
 	signatureInfo := requestParser(req.(*http.Request))
-	fmt.Printf("Seed: %v\n", signatureInfo.seed)
-	fmt.Printf("Signature: %v\n", signatureInfo.signature)
-	fmt.Printf("Keyid: %v\n", signatureInfo.keyid)
-	fmt.Printf("Algorithm: %v\n", signatureInfo.algorithm)
+	// fmt.Printf("Seed: \n%v\n", signatureInfo.seed)
+	// fmt.Printf("Signature: %v\n", signatureInfo.signature)
+	// fmt.Printf("Keyid: %v\n", signatureInfo.keyid)
+	// fmt.Printf("Algorithm: %v\n", signatureInfo.algorithm)
 
+	//signatureInfo := signatureInfo{seed: "\"date\": Tue, 20 Apr 2021 02:07:55 GMT\n\"@method\": POST\n\"@path\": /foo\n\"@authority\": example.com\n\"content-type\": application/json\n\"content-length\": 18\n\"@signature-params\": (\"date\" \"@method\" \"@path\" \"@authority\" \"content-type\" \"content-length\");created=1618884473;keyid=\"test-key-ed25519\"", signature: "wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw=="}
 	var sig signable
 	sig.Seed = signatureInfo.seed
 	sig.Signature = signatureInfo.signature
@@ -79,12 +80,12 @@ func (a *HttpPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annot
 
 type signable struct {
 	Seed      string
-	Signature string 
+	Signature string
 }
 
 type keyInfo struct {
 	ID   string
-	Type string 
+	Type string
 }
 
 func (s *signable) verifySignature(key keyInfo) (bool, error) {
@@ -92,7 +93,8 @@ func (s *signable) verifySignature(key keyInfo) (bool, error) {
 		return false, nil
 	}
 	var p signprovider.Provider
-	switch contracts.KeyAlgorithm (key.Type) {
+	fmt.Printf("key.Type: %v\n", key.Type)
+	switch contracts.KeyAlgorithm(key.Type) {
 	case contracts.KeyEd25519:
 		p = ed25519.New()
 
@@ -100,18 +102,19 @@ func (s *signable) verifySignature(key keyInfo) (bool, error) {
 	// redirects to the same algorithm used in the regular pki annotator for now
 	// we may want to change this in the future and implement the ECDsaP256
 	case contracts.KeyECDsaP256:
-	    p = ed25519.New()
+		p = ed25519.New()
 	default:
-		return false, fmt.Errorf("unrecognized key type %s", key.Type)
+		p = ed25519.New()
+		//return false, fmt.Errorf("unrecognized key type %s", key.Type)
 	}
 	// Path can change from one enviroment to another
 	// When using Kubernetes, we can search for the keyid directly in the secrets folder, as all keys can be stored there
-	keyPath := "../../../test/keys/ed25519/" + key.ID + ".key"
+	keyPath := "../../../test/keys/ed25519/public.key"
 	pub, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return false, err
 	}
-
 	ok := p.Verify(pub, []byte(s.Seed), []byte(s.Signature))
+	fmt.Printf("ok: %v\n", ok)
 	return ok, nil
 }
