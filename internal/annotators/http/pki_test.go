@@ -15,17 +15,26 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/project-alvarium/alvarium-sdk-go/internal/signprovider/ed25519"
+	"github.com/project-alvarium/alvarium-sdk-go/pkg/contracts"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/project-alvarium/alvarium-sdk-go/pkg/config"
 )
 
 func TestHttpPkiAnnotator_Do(t *testing.T) {
-	b, err := ioutil.ReadFile("../../../test/res/config.json")
+	b, err := ioutil.ReadFile("./test/config.json")
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -36,6 +45,7 @@ func TestHttpPkiAnnotator_Do(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
+	/*
 	req := httptest.NewRequest("POST", "/foo?param=value&foo=bar&baz=batman", nil)
 
 	req.Header.Set("Host", "example.com")
@@ -50,12 +60,104 @@ func TestHttpPkiAnnotator_Do(t *testing.T) {
 
 	//req.Header.Set("Signature-Input", "sig1=(\"@method\" \"@path\" \"@authority\" \"cache-control\" \"x-empty-header\" \"x-example\");created=1618884475 ;keyid=\"public\"; alg=\"ecdsa-p256-sha256\"")
 	req.Header.Set("Signature-Input", "sig-b26=(\"date\" \"@method\" \"@path\" \"@authority\" \"content-type\" \"content-length\");created=1618884473;keyid=\"test-key-ed25519\"")
+	*/
+	req, data, err := buildRequest(cfg.Signature)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	pki := NewHttpPkiAnnotator(cfg)
+	ctx := context.WithValue(req.Context(), testRequest, req)
 
-	req.Header.Set("Signature", "sig-b26=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:")
-
-	tpm := NewHttpPkiAnnotator(cfg)
-	ctx := context.WithValue(req.Context(), "testData", req)
-
-	anno, _ := tpm.Do(ctx, nil)
+	anno, _ := pki.Do(ctx, data)
 	t.Log(anno)
+}
+
+func buildRequest(keys config.SignatureInfo) (*http.Request, []byte, error) {
+	type sample struct {
+		Key		string	`json:"key"`
+		Value   string  `json:"value"`
+	}
+
+	t := sample{Key:"keyA",Value: "This is some test data"}
+	b, _ := json.Marshal(t)
+
+	req := httptest.NewRequest("POST", "/foo?param=value&foo=bar&baz=batman", bytes.NewReader(b))
+	req.Header.Set("Host", "example.com")
+
+	ticks := time.Now()
+	now := ticks.String()
+	req.Header.Set("Date", now)
+	req.Header.Set(contentType, string(contracts.ContentTypeJSON))
+	req.Header.Set(contentLength, strconv.FormatInt(req.ContentLength, 10))
+
+	fields := []string{string(method), string(path), string(authority), contentType, contentLength}
+	headerValue, signature, err := signRequest(ticks, fields, keys, req)
+
+	req.Header.Set("Signature-Input", headerValue)
+	req.Header.Set("Signature", signature)
+
+	return req, b, err
+}
+
+func signRequest(ticks time.Time, fields []string, keys config.SignatureInfo, req *http.Request) (string, string, error) {
+	//headerValue := "" //This will be the value returned for populating the Signature-Input header
+	inputValue := "" //This will be the value used as input for the signature
+	sigParams := "" //This will be used to build the signatureParams field
+
+	for i, f := range fields {
+		//headerValue += fmt.Sprintf("\"%s\"", f)
+		switch f {
+		case contentType:
+			inputValue += fmt.Sprintf("\"%s\" %s", f, req.Header.Get(contentType))
+		case contentLength:
+			inputValue += fmt.Sprintf("\"%s\" %s", f, strconv.FormatInt(req.ContentLength, 10))
+		case string(method):
+			inputValue += fmt.Sprintf("\"%s\" %s", f, req.Method)
+		case string(authority):
+			inputValue += fmt.Sprintf("\"%s\" %s", f, req.Host)
+		case string(scheme):
+			scheme := strings.ToLower(strings.Split(req.Proto, "/")[0])
+			inputValue += fmt.Sprintf("\"%s\" %s", f, scheme)
+		case string(requestTarget):
+			inputValue += fmt.Sprintf("\"%s\" %s", f, req.RequestURI)
+		case string(path):
+			inputValue += fmt.Sprintf("\"%s\" %s", f, req.URL.Path)
+		case string(query):
+			var query string = "?"+req.URL.RawQuery
+			inputValue += fmt.Sprintf("\"%s\" %s", f, query)
+		case string(queryParams):
+			queryParamsRawMap := req.URL.Query()
+			var queryParams []string
+			for key, value := range queryParamsRawMap {
+				b := new(bytes.Buffer)
+				fmt.Fprintf(b, ";name=\"%s\": %s", key, value[0])
+				queryParams = append(queryParams, b.String())
+			}
+
+			inputValue += fmt.Sprintf("\"%s\" %s", f, query)
+		}
+
+		sigParams += fmt.Sprintf("\"%s\"", f)
+		inputValue += "\n"
+		if i < len(fields) - 1 {
+			//headerValue += " "
+			sigParams += " "
+		}
+	}
+	tail := fmt.Sprintf("\"%s\": (%s);created=%s;keyid=\"%s\";alg=\"%s\";", string(signatureParams), sigParams, strconv.FormatInt(ticks.Unix(),10),
+		filepath.Base(keys.PublicKey.Path), keys.PublicKey.Type)
+	//headerValue += tail
+	inputValue += tail
+
+	//fmt.Println("HEADER: " + headerValue)
+	fmt.Println("INPUT: " + inputValue)
+	signer := ed25519.New()
+	prv, err := ioutil.ReadFile(keys.PrivateKey.Path)
+	if err != nil {
+		return "", "", err
+	}
+
+	signature := signer.Sign(prv, []byte(inputValue))
+	fmt.Println("SIGNATURE: " + signature)
+	return inputValue, signature, nil
 }

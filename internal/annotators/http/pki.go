@@ -48,8 +48,11 @@ func (a *HttpPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annot
 	hostname, _ := os.Hostname()
 
 	//Call parser on request
-	req := ctx.Value("testData")
-	signatureInfo := requestParser(req.(*http.Request))
+	req := ctx.Value(testRequest)
+	parsed, err := requestParser(req.(*http.Request))
+	if err != nil {
+		return contracts.Annotation{}, err
+	}
 	// fmt.Printf("Seed: \n%v\n", signatureInfo.seed)
 	// fmt.Printf("Signature: %v\n", signatureInfo.signature)
 	// fmt.Printf("Keyid: %v\n", signatureInfo.keyid)
@@ -57,14 +60,12 @@ func (a *HttpPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annot
 
 	//signatureInfo := signatureInfo{seed: "\"date\": Tue, 20 Apr 2021 02:07:55 GMT\n\"@method\": POST\n\"@path\": /foo\n\"@authority\": example.com\n\"content-type\": application/json\n\"content-length\": 18\n\"@signature-params\": (\"date\" \"@method\" \"@path\" \"@authority\" \"content-type\" \"content-length\");created=1618884473;keyid=\"test-key-ed25519\"", signature: "wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw=="}
 	var sig signable
-	sig.Seed = signatureInfo.seed
-	sig.Signature = signatureInfo.signature
+	sig.Seed = parsed.Seed
+	sig.Signature = parsed.Signature
 
-	var k keyInfo
-	k.ID = signatureInfo.keyid
-	k.Type = signatureInfo.algorithm
-
-	ok, err := sig.verifySignature(k)
+	//fmt.Println("sig.Seed=" + sig.Seed)
+	//fmt.Println("sig.Signature=" + sig.Signature)
+	ok, err := sig.verifySignature(a.sign.PublicKey)
 	if err != nil {
 		return contracts.Annotation{}, err
 	}
@@ -83,12 +84,7 @@ type signable struct {
 	Signature string
 }
 
-type keyInfo struct {
-	ID   string
-	Type string
-}
-
-func (s *signable) verifySignature(key keyInfo) (bool, error) {
+func (s *signable) verifySignature(key config.KeyInfo) (bool, error) {
 	if len(s.Signature) == 0 { // no signature detected
 		return false, nil
 	}
@@ -104,13 +100,11 @@ func (s *signable) verifySignature(key keyInfo) (bool, error) {
 	case contracts.KeyECDsaP256:
 		p = ed25519.New()
 	default:
-		p = ed25519.New()
-		//return false, fmt.Errorf("unrecognized key type %s", key.Type)
+		return false, fmt.Errorf("unrecognized key type %s", key.Type)
 	}
 	// Path can change from one enviroment to another
 	// When using Kubernetes, we can search for the keyid directly in the secrets folder, as all keys can be stored there
-	keyPath := "../../../test/keys/ed25519/public.key"
-	pub, err := ioutil.ReadFile(keyPath)
+	pub, err := ioutil.ReadFile(key.Path)
 	if err != nil {
 		return false, err
 	}

@@ -16,13 +16,20 @@ package http
 type specialtyComponent string
 
 const (
-	method        specialtyComponent = "@method"
-	authority     specialtyComponent = "@authority"
-	scheme        specialtyComponent = "@scheme"
-	requestTarget specialtyComponent = "@request-target"
-	path          specialtyComponent = "@path"
-	query         specialtyComponent = "@query"
-	queryParams   specialtyComponent = "@query-params"
+	method        	specialtyComponent = "@method"
+	authority     	specialtyComponent = "@authority"
+	scheme        	specialtyComponent = "@scheme"
+	requestTarget 	specialtyComponent = "@request-target"
+	path          	specialtyComponent = "@path"
+	query         	specialtyComponent = "@query"
+	queryParams   	specialtyComponent = "@query-params"
+	signatureParams	specialtyComponent = "@signature-params"
+)
+
+const (
+	contentLength   string = "Content-Length"
+	contentType     string = "Content-Type"
+	testRequest		string = "testRequest"
 )
 
 func (s specialtyComponent) Validate() bool {

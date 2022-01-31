@@ -13,6 +13,12 @@
  *******************************************************************************/
 package contracts
 
+type ContentType string
+
+const (
+	ContentTypeJSON	ContentType = "application/json"
+)
+
 type HashType string
 
 const (

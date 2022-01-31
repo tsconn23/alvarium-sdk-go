@@ -16,6 +16,7 @@ package http
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -23,17 +24,18 @@ import (
 )
 
 type signatureInfo struct {
-	seed      string
-	signature string
-	keyid     string
-	algorithm string
+	Seed      string
+	Signature string
+	Keyid     string
+	Algorithm string
 }
 
 func RemoveExtraSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func requestParser(r *http.Request) signatureInfo {
+/** My attempt at new function
+func requestParser(r *http.Request) (signatureInfo, error) {
 
 	//Signature Inputs extraction
 	var rgx = regexp.MustCompile(`\((.*?)\)`)
@@ -41,6 +43,81 @@ func requestParser(r *http.Request) signatureInfo {
 	signature := r.Header.Get("Signature")
 
 	rs := rgx.FindStringSubmatch(signatureInput)
+	fmt.Println("inputList " + rs[1])
+	signatureInputList := strings.Split(rs[1], " ")
+
+	parsedSignatureInput := ""
+	signatureInputFields := make(map[string][]string)
+	for i, key := range signatureInputList {
+		if i % 2 == 0 {
+			switch specialtyComponent(key) {
+			case method:
+				signatureInputFields[key] = []string{r.Method}
+			case authority:
+				signatureInputFields[key] = []string{r.Host}
+			case scheme:
+				protocol := r.Proto
+				scheme := strings.ToLower(strings.Split(protocol, "/")[0])
+				signatureInputFields[key] = []string{scheme}
+			case requestTarget:
+				signatureInputFields[key] = []string{r.RequestURI}
+			case path:
+				signatureInputFields[key] = []string{r.URL.Path}
+			case query:
+				var query string = "?"
+				query += r.URL.RawQuery
+				signatureInputFields[key] = []string{query}
+			case queryParams:
+				queryParamsRawMap := r.URL.Query()
+				var queryParams []string
+				for key, value := range queryParamsRawMap {
+					b := new(bytes.Buffer)
+					fmt.Fprintf(b, ";name=\"%s\": %s", key, value[0])
+					queryParams = append(queryParams, b.String())
+				}
+
+				signatureInputFields[key] = queryParams
+			default:
+				return signatureInfo{}, fmt.Errorf("Unhandled Specialty Component %s", key)
+			}
+		}
+	}
+
+	var keyid, algorithm string
+	signatureInputParsedSection := strings.Split(signatureInput, ";")
+	for _, s := range signatureInputParsedSection {
+
+		if strings.Contains(s, "alg") {
+			raw := strings.Split(s, "=")[1]
+			algorithm = strings.Trim(raw, "\"")
+		}
+
+		if strings.Contains(s, "keyid") {
+			raw := strings.Split(s, "=")[1]
+			keyid = strings.Trim(raw, "\"")
+		}
+	}
+
+	// Construct final output string
+	keyValues := signatureInputFields[key]
+	if len(keyValues) == 1 {
+		parsedSignatureInput += ("\"" + key + "\": " + keyValues[0] + "\n")
+	} else {
+		for _, v := range keyValues {
+			parsedSignatureInput += ("\"" + key + "\"" + v + "\n")
+		}
+	}
+} **/
+
+func requestParser(r *http.Request) (signatureInfo, error) {
+
+	//Signature Inputs extraction
+	var rgx = regexp.MustCompile(`\((.*?)\)`)
+	signatureInput := r.Header.Get("Signature-Input")
+	signature := r.Header.Get("Signature")
+
+	rs := rgx.FindStringSubmatch(signatureInput)
+	fmt.Println("inputList " + rs[1])
 	signatureInputList := strings.Split(rs[1], " ")
 
 	signatureInputFields := make(map[string][]string)
@@ -49,14 +126,19 @@ func requestParser(r *http.Request) signatureInfo {
 	signatureInputParsedSection := strings.Split(signatureInput, ";")
 	for _, s := range signatureInputParsedSection {
 
+		/*if strings.Contains(s, "created") {
+			raw := strings.Split(s, "=")[1]
+			created = strings.Trim(raw, "\"")
+		}*/
+
 		if strings.Contains(s, "alg") {
-			algorithm_raw := strings.Split(s, "=")[1]
-			algorithm = strings.Trim(algorithm_raw, "\"")
+			raw := strings.Split(s, "=")[1]
+			algorithm = strings.Trim(raw, "\"")
 		}
 
 		if strings.Contains(s, "key") {
-			keyid_raw := strings.Split(s, "=")[1]
-			keyid = strings.Trim(keyid_raw, "\"")
+			raw := strings.Split(s, "=")[1]
+			keyid = strings.Trim(raw, "\"")
 		}
 
 	}
@@ -66,6 +148,7 @@ func requestParser(r *http.Request) signatureInfo {
 	for _, field := range signatureInputList {
 		//remove double quotes from the field to access it directly in the header map
 		key := field[1 : len(field)-1]
+		fmt.Println("key=" + key)
 		if key[0:1] == "@" {
 			switch specialtyComponent(key) {
 			case method:
@@ -95,7 +178,7 @@ func requestParser(r *http.Request) signatureInfo {
 
 				signatureInputFields[key] = queryParams
 			default:
-				fmt.Errorf("Unhandled Specialty Component %s", key)
+				return signatureInfo{}, fmt.Errorf("Unhandled Specialty Component %s", key)
 			}
 		} else {
 			fieldValues := r.Header.Values(key)
@@ -137,6 +220,9 @@ func requestParser(r *http.Request) signatureInfo {
 
 	// check if the new line needs to be removed from the end
 	parsedSignatureInput += ("\"@signature-params\": " + signatureInput + "\n")
-	s := signatureInfo{seed: parsedSignatureInput, signature: signature, keyid: keyid, algorithm: algorithm}
-	return s
+	s := signatureInfo{Seed: parsedSignatureInput, Signature: signature, Keyid: keyid, Algorithm: algorithm}
+
+	b, _ := json.Marshal(s)
+	fmt.Println("PARSED: " + string(b))
+	return s, nil
 }
