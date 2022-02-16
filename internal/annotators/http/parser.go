@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-type signatureInfo struct {
+type parseResult struct {
 	Seed      string
 	Signature string
 	Keyid     string
@@ -32,7 +32,7 @@ func RemoveExtraSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func requestParser(r *http.Request) (signatureInfo, error) {
+func parseRequest(r *http.Request) (parseResult, error) {
 	//Signature Inputs extraction
 	signatureInput := r.Header.Get("Signature-Input")
 	signature := r.Header.Get("Signature")
@@ -61,7 +61,7 @@ func requestParser(r *http.Request) (signatureInfo, error) {
 	signatureInputFields := make(map[string][]string)
 
 	parsedSignatureInput := ""
-	var s signatureInfo
+	var s parseResult
 
 	for _, field := range signatureInputHeader {
 		//remove double quotes from the field to access it directly in the header map
@@ -135,7 +135,7 @@ func requestParser(r *http.Request) (signatureInfo, error) {
 	}
 
 	parsedSignatureInput = fmt.Sprintf("%s;%s", parsedSignatureInput, signatureInputTail)
-	s = signatureInfo{Seed: parsedSignatureInput, Signature: signature, Keyid: keyid, Algorithm: algorithm}
+	s = parseResult{Seed: parsedSignatureInput, Signature: signature, Keyid: keyid, Algorithm: algorithm}
 
 	return s, nil
 }

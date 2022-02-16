@@ -16,10 +16,13 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/project-alvarium/alvarium-sdk-go/internal/annotators"
 	"github.com/project-alvarium/alvarium-sdk-go/internal/signprovider"
@@ -50,18 +53,23 @@ func (a *HttpPkiAnnotator) Do(ctx context.Context, data []byte) (contracts.Annot
 
 	//Call parser on request
 	req := ctx.Value(testRequest)
-	signatureInfo, err := requestParser(req.(*http.Request))
+	parsed, err := parseRequest(req.(*http.Request))
 
 	if err != nil {
 		return contracts.Annotation{}, err
 	}
 	var sig signable
-	sig.Seed = signatureInfo.Seed
-	sig.Signature = signatureInfo.Signature
+	sig.Seed = parsed.Seed
+	sig.Signature = parsed.Signature
 
-	var k keyInfo
-	k.ID = signatureInfo.Keyid
-	k.Type = signatureInfo.Algorithm
+	// Use the parsed request to obtain the key name and type we should use to validate the signature
+	var k config.KeyInfo
+	directory := filepath.Dir(a.sign.PublicKey.Path)
+	k.Path = strings.Join([]string{directory, parsed.Keyid}, "/")
+	k.Type = contracts.KeyAlgorithm(parsed.Algorithm)
+	if !(k.Type.Validate()) {
+		return contracts.Annotation{}, errors.New("invalid key type specified: " + parsed.Algorithm)
+	}
 
 	ok, err := sig.verifySignature(k)
 	if err != nil {
@@ -81,12 +89,8 @@ type signable struct {
 	Seed      string
 	Signature string
 }
-type keyInfo struct {
-	ID   string
-	Type string
-}
 
-func (s *signable) verifySignature(key keyInfo) (bool, error) {
+func (s *signable) verifySignature(key config.KeyInfo) (bool, error) {
 	if len(s.Signature) == 0 { // no signature detected
 		return false, nil
 	}
@@ -98,11 +102,7 @@ func (s *signable) verifySignature(key keyInfo) (bool, error) {
 	default:
 		return false, fmt.Errorf("unrecognized key type %s", key.Type)
 	}
-	// Path can change from one enviroment to another
-	// When using Kubernetes, we can search for the keyid directly in the secrets folder, as all keys can be stored there
-	// currently we get the local path from config file
-	keyPath := fmt.Sprintf("../../../test/keys/ed25519/%s", key.ID)
-	pub, err := ioutil.ReadFile(keyPath)
+	pub, err := ioutil.ReadFile(key.Path)
 	if err != nil {
 		return false, err
 	}

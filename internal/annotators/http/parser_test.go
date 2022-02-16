@@ -75,7 +75,7 @@ func TestHttpPkiAnnotator_RequestParser(t *testing.T) {
 		req.Header.Set("Signature-Input", tt.signatureInput)
 
 		t.Run(tt.name, func(t *testing.T) {
-			signatureInfo, err := requestParser(req)
+			signatureInfo, err := parseRequest(req)
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -87,17 +87,17 @@ func TestHttpPkiAnnotator_RequestParser(t *testing.T) {
 
 	req := base.Clone(base.Context())
 	req.Header.Set("Signature-Input", "\"@query\";created=1644758607;keyid=\"public.key\";alg=\"ed25519\";")
-	signatureInfo, err := requestParser(req)
+	parsed, err := parseRequest(req)
 
 	t.Run("testing signature", func(t *testing.T) {
-		assert.Equal(t, "whatever", signatureInfo.Signature)
+		assert.Equal(t, "whatever", parsed.Signature)
 	})
 
 	t.Run("testing keyid", func(t *testing.T) {
-		assert.Equal(t, "public.key", signatureInfo.Keyid)
+		assert.Equal(t, "public.key", parsed.Keyid)
 	})
 
 	t.Run("testing algorithm", func(t *testing.T) {
-		assert.Equal(t, "ed25519", signatureInfo.Algorithm)
+		assert.Equal(t, "ed25519", parsed.Algorithm)
 	})
 }
